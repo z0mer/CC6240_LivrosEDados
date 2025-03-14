@@ -1,6 +1,6 @@
 # Projeto Livros & Dados 📚
 
-## 1. Explicação do Tema
+## 1. Explicação do Tema 
 
 O tema escolhido para este projeto é uma **livraria** online. O sistema irá lidar com três tipos principais de dados:
 
@@ -10,9 +10,9 @@ O tema escolhido para este projeto é uma **livraria** online. O sistema irá li
 
 A escolha de uma livraria como tema permite explorar a diversidade de dados. Enquanto as informações de clientes e pedidos precisam de consistência relacional, os dados dos livros podem variar em estrutura, dependendo do tipo de livro (físico, e-book, coleções especiais, etc.). Essa variedade justifica o uso de diferentes bancos de dados para cada necessidade, alinhando-se ao conceito de **Polyglot Persistence**.
 
-## 2. Justificativa para cada Banco e Definição de Como S2 Será Implementado
+## 2. Justificativa para cada banco e definição de como S2 será implementado 
 
-### 2.1 Bancos de Dados Escolhidos
+### 2.1 Bancos de Dados escolhidos ✨️
 
 1. **Banco Relacional (RDB) – PostgreSQL**  
    - **Por que usar?**  
@@ -37,7 +37,7 @@ A escolha de uma livraria como tema permite explorar a diversidade de dados. Enq
      - Pedidos: identificação do cliente, lista de livros adquiridos, valor total, data de compra, status de entrega.  
      - Informações que podem ser consultadas com grande frequência, como histórico de compras do cliente ou análise de vendas.
 
-### 2.2 Definição do Serviço S2
+### 2.2 Definição do serviço S2 ✨️
 
 O **S2** será o serviço responsável por receber as mensagens que chegam do sistema de mensageria (enviadas pelo S1) e realizar as operações de armazenamento/consulta nos bancos de dados. Existem duas abordagens possíveis:
 
