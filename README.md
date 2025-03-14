@@ -1,18 +1,18 @@
 # Projeto Livros & Dados 📚
 
-## 1. Explicação do Tema 
+## ✏️| Explicação do Tema 
 
 O tema escolhido para este projeto é uma **livraria** online. O sistema irá lidar com três tipos principais de dados:
 
-- **Clientes:** informações cadastrais dos leitores, como nome, e-mail, endereço e preferências literárias.  
-- **Livros:** dados sobre os livros disponíveis no catálogo, como título, autor, ISBN, preço, gênero, além de informações adicionais (ex.: sinopse, avaliações).  
-- **Pedidos:** histórico de compras realizadas pelos clientes, incluindo a lista de livros adquiridos, datas, valores totais e status de entrega.
+• **Clientes:** informações cadastrais dos leitores, como nome, e-mail, endereço e preferências literárias.  
+• **Livros:** dados sobre os livros disponíveis no catálogo, como título, autor, ISBN, preço, gênero, além de informações adicionais (ex.: sinopse, avaliações).  
+• **Pedidos:** histórico de compras realizadas pelos clientes, incluindo a lista de livros adquiridos, datas, valores totais e status de entrega.
 
 A escolha de uma livraria como tema permite explorar a diversidade de dados. Enquanto as informações de clientes e pedidos precisam de consistência relacional, os dados dos livros podem variar em estrutura, dependendo do tipo de livro (físico, e-book, coleções especiais, etc.). Essa variedade justifica o uso de diferentes bancos de dados para cada necessidade, alinhando-se ao conceito de **Polyglot Persistence**.
 
-## 2. Justificativa para cada banco e definição de como S2 será implementado 
+## ✏️| Justificativa para cada banco e definição de como S2 será implementado 
 
-### 2.1 Bancos de Dados escolhidos ✨️
+### ✨️ • Bancos de Dados escolhidos
 
 1. **Banco Relacional (RDB) – PostgreSQL**  
    - **Por que usar?**  
@@ -37,7 +37,7 @@ A escolha de uma livraria como tema permite explorar a diversidade de dados. Enq
      - Pedidos: identificação do cliente, lista de livros adquiridos, valor total, data de compra, status de entrega.  
      - Informações que podem ser consultadas com grande frequência, como histórico de compras do cliente ou análise de vendas.
 
-### 2.2 Definição do serviço S2 ✨️
+### ✨️ • Definição do serviço S2
 
 O **S2** será o serviço responsável por receber as mensagens que chegam do sistema de mensageria (enviadas pelo S1) e realizar as operações de armazenamento/consulta nos bancos de dados. Existem duas abordagens possíveis:
 
@@ -57,6 +57,8 @@ O **S2** será o serviço responsável por receber as mensagens que chegam do si
      - Separação de responsabilidades e escalabilidade independente de cada serviço.  
    - **Desvantagens:**  
      - Maior número de serviços para gerenciar e orquestrar.
+
+---
 
 Para este projeto, **optaremos inicialmente por um único serviço S2**, pois isso simplifica a demonstração do conceito de Polyglot Persistence. O serviço único fará a leitura de cada mensagem (por exemplo, “cliente.create”, “livro.create”, “pedido.create”) e gravará os dados no respectivo banco. Caso seja necessário escalar ou segmentar a aplicação, podemos evoluir para microserviços em uma etapa posterior.
 
