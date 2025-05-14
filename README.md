@@ -1,65 +1,124 @@
-# Projeto Livros & Dados 📚
+# 📚 Projeto Livros & Dados – Polyglot Persistence
 
-## ✏️| Explicação do Tema 
+Este projeto implementa uma **livraria online** usando o padrão **Polyglot Persistence** e arquitetura **Pub/Sub** com Apache Kafka. Três serviços (S1, S2 e S3) trocam mensagens via Kafka e armazenam dados em diferentes bancos, de acordo com o uso de cada informação.
 
-O tema escolhido para este projeto é uma **livraria** online. O sistema irá lidar com três tipos principais de dados:
 
-• **Clientes:** informações cadastrais dos leitores, como nome, e-mail, endereço e preferências literárias.  
-• **Livros:** dados sobre os livros disponíveis no catálogo, como título, autor, ISBN, preço, gênero, além de informações adicionais (ex.: sinopse, avaliações).  
-• **Pedidos:** histórico de compras realizadas pelos clientes, incluindo a lista de livros adquiridos, datas, valores totais e status de entrega.
 
-A escolha de uma livraria como tema permite explorar a diversidade de dados. Enquanto as informações de clientes e pedidos precisam de consistência relacional, os dados dos livros podem variar em estrutura, dependendo do tipo de livro (físico, e-book, coleções especiais, etc.). Essa variedade justifica o uso de diferentes bancos de dados para cada necessidade, alinhando-se ao conceito de **Polyglot Persistence**.
+## 🧩 Como Funciona
 
-## ✏️| Justificativa para cada banco e definição de como S2 será implementado 
+1. **S1 – Produtor**
+    - Gera dados fictícios de **Clientes** (via Faker), **Livros** (via API Google Books) e **Pedidos**.
+        
+        > **Nota:** os e-mails e demais dados gerados pelo Faker são fictícios e usam domínios reservados (`@example.com`, `@example.org` e `@example.net`) para evitar uso de informações reais.
+        > 
+    - Publica mensagens nos tópicos Kafka:
+        - `customers` (clientes)
+        - `books` (livros)
+        - `orders` (pedidos)
+2. **Kafka (Mensageria)**
+    - Apache Kafka + Zookeeper garantem o fluxo assíncrono de mensagens.
+3. **S2 – Consumer & Armazenamento**
+    - Lê os três tópicos do Kafka e persiste:
+        - **Clientes** em **PostgreSQL** (modelo relacional).
+        - **Livros** em **MongoDB** (document store).
+        - **Pedidos** em **Redis** (key-value).
+4. **S3 – Logger**
+    - Também consome os mesmos tópicos e grava cada mensagem bruta em `messages.log` para auditoria.
 
-### ✨️ • Bancos de Dados escolhidos
 
-1. **Banco Relacional (RDB) – PostgreSQL**  
-   - **Por que usar?**  
-     - É fundamental garantir a integridade e a consistência das informações dos clientes (nome, e-mail, CPF, etc.).  
-     - Um modelo relacional facilita a criação de relacionamentos e a aplicação de restrições (ex.: unicidade de e-mail).  
-   - **Quais dados serão armazenados?**  
-     - Dados cadastrais dos clientes: nome, e-mail, endereço, preferências.  
-     - Possível uso de chaves estrangeiras, caso necessário relacionar clientes a outras entidades (por exemplo, histórico de pedidos).
 
-2. **Banco NoSQL (Document Store) – MongoDB**  
-   - **Por que usar?**  
-     - Livros podem ter estruturas de dados diferentes (livros físicos vs. e-books), atributos opcionais (edições, formatos, idiomas, etc.).  
-     - O formato de documentos (JSON) oferece flexibilidade para armazenar diversas informações sem a necessidade de alterar esquemas complexos.  
-   - **Quais dados serão armazenados?**  
-     - Informações dos livros: título, autor, ISBN, gênero, sinopse, avaliações, preço, estoque, formato (físico ou digital), entre outros atributos específicos.
+## ⚙️ Pré-requisitos
 
-3. **Banco NoSQL (Wide Column) – Cassandra**  
-   - **Por que usar?**  
-     - Escalabilidade horizontal e alta disponibilidade para lidar com um grande volume de pedidos, especialmente se a livraria crescer e receber muitos acessos simultâneos.  
-     - Modelagem orientada a consultas, eficiente para recuperar rapidamente históricos de pedidos ou buscar dados de vendas.  
-   - **Quais dados serão armazenados?**  
-     - Pedidos: identificação do cliente, lista de livros adquiridos, valor total, data de compra, status de entrega.  
-     - Informações que podem ser consultadas com grande frequência, como histórico de compras do cliente ou análise de vendas.
+Antes de começar, verifique se possui instalado em sua máquina:
 
-### ✨️ • Definição do serviço S2
+- **Docker Desktop** (inclui Docker Compose)
+- **Python 3.11+**
+- **pip** (gerenciador de pacotes Python)
 
-O **S2** será o serviço responsável por receber as mensagens que chegam do sistema de mensageria (enviadas pelo S1) e realizar as operações de armazenamento/consulta nos bancos de dados. Existem duas abordagens possíveis:
 
-1. **Serviço Único (Monolítico)**  
-   - Lê todas as mensagens (sobre clientes, livros e pedidos) e faz o roteamento interno, direcionando cada operação para o banco apropriado (PostgreSQL, MongoDB ou Cassandra).  
-   - **Vantagens:**  
-     - Menor complexidade na gestão de serviços (somente um serviço para consumir as mensagens).  
-   - **Desvantagens:**  
-     - Pode tornar-se muito grande e de difícil manutenção à medida que a aplicação cresce.
 
-2. **Serviços Separados (Microserviços)**  
-   - Um serviço para cada tipo de dado:  
-     - **S2-Clientes:** conecta-se ao PostgreSQL.  
-     - **S2-Livros:** conecta-se ao MongoDB.  
-     - **S2-Pedidos:** conecta-se ao Cassandra.  
-   - **Vantagens:**  
-     - Separação de responsabilidades e escalabilidade independente de cada serviço.  
-   - **Desvantagens:**  
-     - Maior número de serviços para gerenciar e orquestrar.
+## 🔧 Instalação e Configuração
+
+1. **Clone o repositório**:
+    
+    ```bash
+    git clone https://github.com/seu-usuario/polyglot-persistence.git
+    cd polyglot-persistence
+    ```
+    
+2. **Variáveis de ambiente**:
+    - O arquivo `.env` já contém a **Google Books API Key** configurada para avaliação; **não é necessário alterá-la**.
+3. **Instale dependências Python**:
+    
+    ```bash
+    pip install -r requirements.txt
+    
+    ```
+    
+4. **Inicie a infraestrutura**:
+    
+    ```bash
+    docker-compose up -d
+    
+    ```
+    
+    Isso sobe: Kafka, Zookeeper, PostgreSQL, MongoDB e Redis.
+    
+
+
+
+## 🗂️ Estrutura do Projeto
+
+```
+polyglot-persistence/
+├── .env.example       # Exemplo de variáveis de ambiente
+├── docker-compose.yml # Infraestrutura Docker
+├── requirements.txt   # Dependências Python
+├── README.md          # Este arquivo
+└── services/
+    ├── s1_producer/
+    │   └── producer.py
+    ├── s2_consumer/
+    │   └── consumer.py
+    └── s3_logger/
+        └── logger.py
+
+```
+
+
+
+## 🚀 Como Executar
+
+Abra **três terminais** e, em cada um, execute:
+
+```bash
+# Terminal 1 – S1: Produtor
+python services/s1_producer/producer.py
+
+# Terminal 2 – S2: Consumer & Armazenamento
+python services/s2_consumer/consumer.py
+
+# Terminal 3 – S3: Logger
+python services/s3_logger/logger.py
+
+```
+
+Você verá no terminal:
+
+- **S1**: `[S1] Sent customer/book/order`
+- **S2**: `[S2] Stored customer/book/order in Redis`
+- **S3**: `[S3] Logged message from ...`
+
+**Auditoria**: abra `messages.log` para ver todas as mensagens processadas.
+
+
+
+## 🛑 Parar e Limpar
+
+Para encerrar e remover containers, redes e volumes:
+
+```bash
+docker-compose down --volumes --remove-orphans
+```
 
 ---
-
-Para este projeto, **optaremos inicialmente por um único serviço S2**, pois isso simplifica a demonstração do conceito de Polyglot Persistence. O serviço único fará a leitura de cada mensagem (por exemplo, “cliente.create”, “livro.create”, “pedido.create”) e gravará os dados no respectivo banco. Caso seja necessário escalar ou segmentar a aplicação, podemos evoluir para microserviços em uma etapa posterior.
-
-

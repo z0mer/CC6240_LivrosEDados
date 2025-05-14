@@ -1,11 +1,10 @@
+version: '3.8'
 services:
   zookeeper:
     image: confluentinc/cp-zookeeper:latest
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
-    ports:
-      - "2181:2181"
 
   kafka:
     image: confluentinc/cp-kafka:latest
@@ -13,61 +12,27 @@ services:
       - zookeeper
     environment:
       KAFKA_BROKER_ID: 1
-      KAFKA_ZOOKEEPER_CONNECT: "zookeeper:2181"
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
-      KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
+      KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
     ports:
-      - "9092:9092"
+      - '9092:9092'
 
   postgres:
-    image: postgres:15
+    image: postgres:13
     environment:
+      POSTGRES_DB: customers_db
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: livraria
     ports:
-      - "5432:5432"
-    volumes:
-      - pgdata:/var/lib/postgresql/data
+      - '5432:5432'
 
   mongo:
-    image: mongo:6
+    image: mongo:4.4
     ports:
-      - "27017:27017"
-    volumes:
-      - mongodata:/data/db
+      - '27017:27017'
 
-  cassandra:
-    image: cassandra:4
+  redis:
+    image: redis:6.2-alpine
     ports:
-      - "9042:9042"
-    healthcheck:
-      test: ["CMD-SHELL", "cqlsh -e 'describe keyspaces'"]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-    volumes:
-      - cassandrafiles:/var/lib/cassandra
-
-  s1-producer:
-    build:
-      context: ./services/s1-producer
-    depends_on:
-      - kafka
-
-  s2-consumer:
-    build:
-      context: ./services/s2-consumer
-      dockerfile: Dockerfile
-    depends_on:
-      - kafka
-      - postgres
-      - mongo
-      - cassandra
-
-volumes:
-  pgdata:
-  mongodata:
-  cassandrafiles:
- 
+      - '6379:6379'
