@@ -1,116 +1,131 @@
 # 📚 Projeto Livros & Dados – Polyglot Persistence
 
-Este projeto implementa uma **livraria online** usando o padrão **Polyglot Persistence** e arquitetura **Pub/Sub** com Apache Kafka. Três serviços (S1, S2 e S3) trocam mensagens via Kafka e armazenam dados em diferentes bancos, de acordo com o uso de cada informação.
+Este repositório implementa uma **livraria online** seguindo o padrão **Polyglot Persistence** e arquitetura **Pub/Sub** com **Apache Kafka**. O sistema envolve três serviços e armazena diferentes tipos de dados em bancos distintos:
+
+* **Clientes** (informações cadastrais)
+* **Livros** (catálogo via API Google Books)
+* **Pedidos** (histórico de compras)
 
 
-
-## 🧩 Como Funciona
+## 🧩 Visão Geral e Funcionamento
 
 1. **S1 – Produtor**
-    - Gera dados fictícios de **Clientes** (via Faker), **Livros** (via API Google Books) e **Pedidos**.
-        
-        > **Nota:** os e-mails e demais dados gerados pelo Faker são fictícios e usam domínios reservados (`@example.com`, `@example.org` e `@example.net`) para evitar uso de informações reais.
-        > 
-    - Publica mensagens nos tópicos Kafka:
-        - `customers` (clientes)
-        - `books` (livros)
-        - `orders` (pedidos)
-2. **Kafka (Mensageria)**
-    - Apache Kafka + Zookeeper garantem o fluxo assíncrono de mensagens.
-3. **S2 – Consumer & Armazenamento**
-    - Lê os três tópicos do Kafka e persiste:
-        - **Clientes** em **PostgreSQL** (modelo relacional).
-        - **Livros** em **MongoDB** (document store).
-        - **Pedidos** em **Redis** (key-value).
-4. **S3 – Logger**
-    - Também consome os mesmos tópicos e grava cada mensagem bruta em `messages.log` para auditoria.
 
+   * Gera dados fictícios de **Clientes** (via Faker), **Livros** (API Google Books) e **Pedidos**.
+
+     > **Nota:** o Faker usa domínios reservados (`@example.com`, `@example.org`, `@example.net`) para gerar e-mails falsos, evitando dados reais.
+   * Publica mensagens em três tópicos Kafka:
+
+     * `customers`
+     * `books`
+     * `orders`
+
+2. **Kafka + Zookeeper**
+
+   * Serviço de mensageria Pub/Sub que desacopla produtores e consumidores.
+
+3. **S2 – Consumer & Armazenamento**
+
+   * Consome mensagens dos três tópicos e persiste em bancos apropriados:
+
+    * **Clientes:** `id` (UUID), `name` (nome), `email` (e-mail)
+    * **Livros:** `id` (Google Books ID), `isbn` (se disponível), `title` (título), `authors` (autores), `publishedDate` (data de publicação)
+    * **Pedidos:** `id` (UUID), `customer_id` (UUID do cliente), `book_id` (ID do livro), `quantity` (quantidade), `timestamp` (carimbo de tempo)
+
+4. **S3 – Logger**
+
+   * Consome os mesmos tópicos e grava cada mensagem **crua** em `messages.log` para auditoria.
+
+
+## ✏️ Tema e Justificativa de Bancos
+
+### 1. Tema: Livraria Online
+
+O sistema lida com:
+
+* **Clientes:** id, nome, e-mail.
+* **Livros:** id, isbn, título, autores, data de publicação.
+* **Pedidos:** id, id do cliente, id do livro, quantidade, carimbo de tempo.
+
+A diversidade de estrutura e volume de acesso justifica o uso de **Polyglot Persistence**.
+
+### 2. Escolha dos Bancos
+
+| Banco          | Tipo                   | Uso                                                |
+| -------------- | ---------------------- | -------------------------------------------------- |
+| **PostgreSQL** | Relacional (RDB)       | Clientes (integridade e restrições)                |
+| **MongoDB**    | Document Store (NoSQL) | Livros (estrutura flexível em JSON)                |
+| **Redis**      | Key-Value (NoSQL)      | Pedidos (lembrança rápida de histórico de compras) |
+
+> *Nota:* originalmente consideramos Cassandra (wide-column) para pedidos, mas optamos por Redis para agilizar a entrega e evitar dependências de C-extensions.
+
+### 3. Implementação do S2
+
+Optamos por **um único serviço S2** que roteia internamente:
+
+* Recebe todas as mensagens e, conforme o tópico, chama a camada de persistência correspondente.
+* **Vantagem:** demonstração simples e código centralizado.
+* **Evolução futura:** possível divisão em microserviços específicos para cada dado.
 
 
 ## ⚙️ Pré-requisitos
 
-Antes de começar, verifique se possui instalado em sua máquina:
-
-- **Docker Desktop** (inclui Docker Compose)
-- **Python 3.11+**
-- **pip** (gerenciador de pacotes Python)
-
+* **Docker Desktop** (com Docker Compose)
+* **Python 3.11+**
+* **pip**
 
 
 ## 🔧 Instalação e Configuração
 
-1. **Clone o repositório**:
-    
-    ```bash
-    git clone https://github.com/seu-usuario/polyglot-persistence.git
-    cd polyglot-persistence
-    ```
-    
-2. **Variáveis de ambiente**:
-    - O arquivo `.env` já contém a **Google Books API Key** configurada para avaliação; **não é necessário alterá-la**.
-3. **Instale dependências Python**:
-    
-    ```bash
-    pip install -r requirements.txt
-    
-    ```
-    
-4. **Inicie a infraestrutura**:
-    
-    ```bash
-    docker-compose up -d
-    
-    ```
-    
-    Isso sobe: Kafka, Zookeeper, PostgreSQL, MongoDB e Redis.
-    
+1. **Clone o repositório**
 
+   ```bash
+   git clone https://github.com/z0mer/PJ3.BANCO_DE_DADOS.git
+   cd PJ3.BANCO_DE_DADOS
+   ```
 
+2. **Variáveis de ambiente**
 
-## 🗂️ Estrutura do Projeto
+   * O arquivo `.env` já contém a **Google Books API Key**;
 
-```
-polyglot-persistence/
-├── .env.example       # Exemplo de variáveis de ambiente
-├── docker-compose.yml # Infraestrutura Docker
-├── requirements.txt   # Dependências Python
-├── README.md          # Este arquivo
-└── services/
-    ├── s1_producer/
-    │   └── producer.py
-    ├── s2_consumer/
-    │   └── consumer.py
-    └── s3_logger/
-        └── logger.py
+3. **Instale dependências Python**
 
-```
+   ```bash
+   pip install -r requirements.txt
+   ```
 
+4. **Inicie os containers**
 
+   ```bash
+   docker-compose up -d
+   ```
 
-## 🚀 Como Executar
+   Serviços iniciados: Kafka, Zookeeper, PostgreSQL, MongoDB e Redis.
 
-Abra **três terminais** e, em cada um, execute:
+---
+
+## 🚀 Execução
+
+Abra mais **três terminais** e execute em cada um:
 
 ```bash
-# Terminal 1 – S1: Produtor
+# Terminal 1 – Produtor (S1)
 python services/s1_producer/producer.py
 
-# Terminal 2 – S2: Consumer & Armazenamento
+# Terminal 2 – Consumer & Armazenamento (S2)
 python services/s2_consumer/consumer.py
 
-# Terminal 3 – S3: Logger
+# Terminal 3 – Logger (S3)
 python services/s3_logger/logger.py
-
 ```
 
-Você verá no terminal:
+Você verá:
 
-- **S1**: `[S1] Sent customer/book/order`
-- **S2**: `[S2] Stored customer/book/order in Redis`
-- **S3**: `[S3] Logged message from ...`
+* **S1:** `[S1] Sent customer/book/order`
+* **S2:** `[S2] Stored customer/book/order in Redis`
+* **S3:** `[S3] Logged message from ...`
 
-**Auditoria**: abra `messages.log` para ver todas as mensagens processadas.
-
+ **Auditoria:** abra `messages.log` para ver todas as mensagens processadas.
 
 
 ## 🛑 Parar e Limpar
@@ -121,4 +136,3 @@ Para encerrar e remover containers, redes e volumes:
 docker-compose down --volumes --remove-orphans
 ```
 
----

@@ -37,8 +37,16 @@ def fetch_book():
     if not item:
         return
     vol = item['volumeInfo']
+    # Extrai ISBN, se disponível
+    identifiers = vol.get('industryIdentifiers', [])
+    isbn = next(
+        (ident['identifier'] for ident in identifiers
+         if ident.get('type', '').startswith('ISBN')),
+        None
+    )
     book = {
         'id': item['id'],
+        'isbn': isbn,
         'title': vol.get('title'),
         'authors': vol.get('authors'),
         'publishedDate': vol.get('publishedDate')
