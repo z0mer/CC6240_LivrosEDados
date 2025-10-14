@@ -1,72 +1,64 @@
-# 📚 Projeto Livros & Dados – Polyglot Persistence
+# 📚 Projeto Livros & Dados – Polyglot Persistence (2.0)
 
-Este repositório implementa uma **livraria online** seguindo o padrão **Polyglot Persistence** e arquitetura **Pub/Sub** com **Apache Kafka**. O sistema envolve três serviços e armazena diferentes tipos de dados em bancos distintos:
+Este projeto implementa uma **livraria online** utilizando o padrão **Polyglot Persistence**, onde diferentes tipos de dados são armazenados em bancos de dados distintos, escolhidos conforme a natureza e o uso de cada dado. A arquitetura é baseada em comunicação direta entre serviços (Cliente-Servidor).
 
-* **Clientes** (informações cadastrais)
-* **Livros** (catálogo via API Google Books)
-* **Pedidos** (histórico de compras)
+O sistema envolve dois serviços principais e três bancos de dados:
 
+* **S1 (Cliente):** Gera dados e faz requisições para o serviço S2.
+* **S2 (Servidor):** Recebe as requisições, processa e armazena/consulta os dados nos bancos apropriados.
+* **Bancos de Dados:**
+    * **Clientes** (informações cadastrais)
+    * **Livros** (catálogo de produtos)
+    * **Pedidos** (histórico de compras)
 
-## 🧩 Visão Geral e Funcionamento
+## 🧩 Arquitetura e Funcionamento
 
-1. **S1 – Produtor**
+O sistema segue o modelo Cliente-Servidor, onde S1 faz requisições HTTP para S2.
 
-   * Gera dados fictícios de **Clientes** (via Faker), **Livros** (API Google Books) e **Pedidos**.
+```mermaid
+graph LR
+    S1(S1 - Cliente) <--> S2(S2 - Servidor API)
+    S2 <--> RDB[(PostgreSQL - Clientes)]
+    S2 <--> DB1[(MongoDB - Livros)]
+    S2 <--> DB2[(Redis - Pedidos)]
+```
 
-     > **Nota:** o Faker usa domínios reservados (`@example.com`, `@example.org`, `@example.net`) para gerar e-mails falsos, evitando dados reais.
-   * Publica mensagens em três tópicos Kafka:
+1.  **S1 – Cliente (`client.py`)**
+    * Gera dados fictícios de **Clientes** (usando a biblioteca Faker), busca dados de **Livros** na API do Google Books e cria **Pedidos** associando clientes e livros.
+    * Envia esses dados via requisições HTTP (POST) para o serviço S2.
+    * Armazena um log detalhado de cada requisição enviada e da resposta recebida de S2 no arquivo `s1_log.json` para fins de auditoria e verificação.
 
-     * `customers`
-     * `books`
-     * `orders`
+2.  **S2 – Servidor (`server.py`)**
+    * É uma API REST (construída com Flask) que expõe endpoints para manipular clientes, livros e pedidos.
+    * Recebe as requisições de S1 e direciona os dados para o banco de dados correto:
+        * Requisições sobre clientes são persistidas no **PostgreSQL**.
+        * Requisições sobre livros são persistidas no **MongoDB**.
+        * Requisições sobre pedidos são persistidas no **Redis**.
+    * Retorna respostas em formato JSON para S1, confirmando o sucesso ou informando sobre erros.
 
-2. **Kafka + Zookeeper**
-
-   * Serviço de mensageria Pub/Sub que desacopla produtores e consumidores.
-
-3. **S2 – Consumer & Armazenamento**
-
-   * Consome mensagens dos três tópicos e persiste em bancos apropriados:
-
-    * **Clientes:** `id` (UUID), `name` (nome), `email` (e-mail)
-    * **Livros:** `id` (Google Books ID), `isbn` (se disponível), `title` (título), `authors` (autores), `publishedDate` (data de publicação)
-    * **Pedidos:** `id` (UUID), `customer_id` (UUID do cliente), `book_id` (ID do livro), `quantity` (quantidade), `timestamp` (carimbo de tempo)
-
-4. **S3 – Logger**
-
-   * Consome os mesmos tópicos e grava cada mensagem **crua** em `messages.log` para auditoria.
-
-
-## ✏️ Tema e Justificativa de Bancos
+## ✏️ Tema e Justificativa dos Bancos
 
 ### 1. Tema: Livraria Online
 
-O sistema lida com:
+O sistema gerencia três entidades principais com características distintas:
 
-* **Clientes:** id, nome, e-mail.
-* **Livros:** id, isbn, título, autores, data de publicação.
-* **Pedidos:** id, id do cliente, id do livro, quantidade, carimbo de tempo.
+* **Clientes:** Dados estruturados com campos fixos (ID, nome, e-mail).
+* **Livros:** Dados semiestruturados vindos de uma fonte externa (API), com campos que podem variar (ex: alguns livros podem não ter ISBN ou múltiplos autores).
+* **Pedidos:** Dados de acesso rápido, representando uma ação transacional (a compra de um livro por um cliente).
 
-A diversidade de estrutura e volume de acesso justifica o uso de **Polyglot Persistence**.
+Essa diversidade justifica o uso de **Polyglot Persistence**.
 
-### 2. Escolha dos Bancos
+### 2. Escolha dos Bancos de Dados
 
-| Banco          | Tipo                   | Uso                                                |
-| -------------- | ---------------------- | -------------------------------------------------- |
-| **PostgreSQL** | Relacional (RDB)       | Clientes (integridade e restrições)                |
-| **MongoDB**    | Document Store (NoSQL) | Livros (estrutura flexível em JSON)                |
-| **Redis**      | Key-Value (NoSQL)      | Pedidos (lembrança rápida de histórico de compras) |
-
-> *Nota:* originalmente consideramos Cassandra (wide-column) para pedidos, mas optamos por Redis para agilizar a entrega e evitar dependências de C-extensions.
+| Banco          | Tipo                   | Dado Armazenado | Justificativa                                                                                             |
+| :------------- | :--------------------- | :-------------- | :-------------------------------------------------------------------------------------------------------- |
+| **PostgreSQL** | Relacional (RDB)       | Clientes        | Ideal para dados cadastrais estruturados. Garante consistência, integridade e a possibilidade de relacionamentos futuros (ex: endereços). |
+| **MongoDB** | Document Store (NoSQL) | Livros          | Perfeito para armazenar dados em formato JSON. Sua flexibilidade acomoda a estrutura variável dos dados de livros vindos da API do Google Books. |
+| **Redis** | Key-Value (NoSQL)      | Pedidos         | Excelente para dados que precisam de alta velocidade de escrita e leitura. Armazena os pedidos de forma simples e rápida, ideal para consulta de histórico recente. |
 
 ### 3. Implementação do S2
 
-Optamos por **um único serviço S2** que roteia internamente:
-
-* Recebe todas as mensagens e, conforme o tópico, chama a camada de persistência correspondente.
-* **Vantagem:** demonstração simples e código centralizado.
-* **Evolução futura:** possível divisão em microserviços específicos para cada dado.
-
+O serviço S2 foi implementado como um **serviço monolítico com roteamento interno**. Ele centraliza toda a lógica de negócio e persistência em uma única API, facilitando a implantação e o desenvolvimento para este escopo de projeto. Cada endpoint da API é responsável por interagir com o banco de dados correspondente.
 
 ## ⚙️ Pré-requisitos
 
@@ -74,65 +66,53 @@ Optamos por **um único serviço S2** que roteia internamente:
 * **Python 3.11+**
 * **pip**
 
-
 ## 🔧 Instalação e Configuração
 
-1. **Clone o repositório**
+1.  **Clone o repositório**
+    ```bash
+    git clone <URL_DO_SEU_REPOSITORIO>
+    cd <NOME_DA_PASTA>
+    ```
 
-   ```bash
-   git clone https://github.com/z0mer/PJ3.BANCO_DE_DADOS.git
-   cd PJ3.BANCO_DE_DADOS
-   ```
+2.  **Variáveis de Ambiente**
+    * O arquivo `.env` já contém a chave da **Google Books API** e as configurações padrão dos bancos. Se necessário, ajuste as portas ou senhas.
 
-2. **Variáveis de ambiente**
+3.  **Instale as dependências Python**
+    ```bash
+    pip install -r requirements.txt
+    ```
 
-   * O arquivo `.env` já contém a **Google Books API Key**;
-
-3. **Instale dependências Python**
-
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-4. **Inicie os containers**
-
-   ```bash
-   docker-compose up -d
-   ```
-
-   Serviços iniciados: Kafka, Zookeeper, PostgreSQL, MongoDB e Redis.
-
----
+4.  **Inicie os containers dos bancos de dados**
+    ```bash
+    docker-compose up -d
+    ```
+    Este comando irá iniciar os containers do PostgreSQL, MongoDB e Redis em segundo plano.
 
 ## 🚀 Execução
 
-Abra mais **três terminais** e execute em cada um:
+Para rodar o projeto, você precisará de **dois terminais** abertos no diretório raiz do projeto.
 
-```bash
-# Terminal 1 – Produtor (S1)
-python services/s1_producer/producer.py
+1.  **Terminal 1 – Inicie o Servidor (S2)**
+    ```bash
+    python services/s2_server/server.py
+    ```
+    Você verá a confirmação de que o servidor Flask está rodando.
 
-# Terminal 2 – Consumer & Armazenamento (S2)
-python services/s2_consumer/consumer.py
+2.  **Terminal 2 – Inicie o Cliente (S1)**
+    ```bash
+    python services/s1_client/client.py
+    ```
+    O cliente começará a gerar dados e a enviar requisições para o servidor S2. Você verá os logs de envio no terminal.
 
-# Terminal 3 – Logger (S3)
-python services/s3_logger/logger.py
-```
-
-Você verá:
-
-* **S1:** `[S1] Sent customer/book/order`
-* **S2:** `[S2] Stored customer/book/order in Redis`
-* **S3:** `[S3] Logged message from ...`
-
- **Auditoria:** abra `messages.log` para ver todas as mensagens processadas.
-
+**Para verificar:**
+* **Logs do S1:** Abra o arquivo `s1_log.json` para ver o histórico completo de requisições e respostas.
+* **Logs do S2:** O terminal onde S2 está rodando mostrará as requisições que chegam (ex: `POST /customers 201 -`).
+* **Bancos de Dados:** Você pode usar ferramentas como DBeaver (para PostgreSQL), MongoDB Compass ou o Redis CLI para verificar se os dados estão sendo salvos corretamente.
 
 ## 🛑 Parar e Limpar
 
-Para encerrar e remover containers, redes e volumes:
+Para parar a execução e remover os containers, redes e volumes criados pelo Docker Compose, execute:
 
 ```bash
-docker-compose down --volumes --remove-orphans
+docker-compose down --volumes
 ```
-

@@ -1,7 +1,8 @@
-kafka-python
+# requirements.txt
 requests
 psycopg2-binary
 pymongo
-redis           
+redis
 python-dotenv
 faker
+Flask
