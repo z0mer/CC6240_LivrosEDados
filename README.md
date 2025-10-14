@@ -70,8 +70,8 @@ O serviço S2 foi implementado como um **serviço monolítico com roteamento int
 
 1.  **Clone o repositório**
     ```bash
-    git clone <URL_DO_SEU_REPOSITORIO>
-    cd <NOME_DA_PASTA>
+    git clone [<URL_DO_SEU_REPOSITORIO>](https://github.com/z0mer/CC6240_LivrosEDados.git)
+    cd CC6240_LivrosEDados.git
     ```
 
 2.  **Variáveis de Ambiente**
